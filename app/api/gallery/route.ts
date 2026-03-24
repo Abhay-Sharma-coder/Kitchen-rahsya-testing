@@ -1,6 +1,3 @@
-import path from "path";
-import { promises as fs } from "fs";
-import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import Gallery from "@/models/Gallery";
 import { connectToDatabase } from "@/lib/mongodb";
@@ -44,17 +41,28 @@ export async function POST(req: NextRequest) {
       if (!file) {
         return NextResponse.json({ error: "File is required" }, { status: 400 });
       }
-
-      const extension = path.extname(file.name) || (mediaType === "video" ? ".mp4" : ".jpg");
-      const fileName = `gallery-${Date.now()}-${randomUUID()}${extension}`;
-      const imagesDir = path.join(process.cwd(), "public", "images");
-      const filePath = path.join(imagesDir, fileName);
       const bytes = await file.arrayBuffer();
+      const mimeType = file.type || (mediaType === "video" ? "video/mp4" : "image/jpeg");
+      const maxBytes = mediaType === "video" ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
 
-      await fs.mkdir(imagesDir, { recursive: true });
-      await fs.writeFile(filePath, Buffer.from(bytes));
+      if (bytes.byteLength === 0) {
+        return NextResponse.json({ error: "Uploaded file is empty" }, { status: 400 });
+      }
 
-      url = `/images/${fileName}`;
+      if (bytes.byteLength > maxBytes) {
+        return NextResponse.json(
+          {
+            error:
+              mediaType === "video"
+                ? "Video is too large. Please upload a file up to 10MB."
+                : "Image is too large. Please upload a file up to 5MB.",
+          },
+          { status: 413 }
+        );
+      }
+
+      const base64 = Buffer.from(bytes).toString("base64");
+      url = `data:${mimeType};base64,${base64}`;
     } else {
       const body = (await req.json()) as Record<string, unknown>;
       url = String(body.url ?? "").trim();
