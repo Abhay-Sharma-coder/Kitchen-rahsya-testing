@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { Suspense, useState, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { SlidersHorizontal, Grid3X3, LayoutGrid, ChevronDown, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 
 type SortOption = 'popular' | 'price-low' | 'price-high' | 'newest' | 'rating';
 
-export default function ProductsPage() {
+function ProductsPageContent() {
   const { state } = useStore();
   const searchParams = useSearchParams();
   const filterParam = searchParams.get('filter');
@@ -366,5 +366,13 @@ export default function ProductsPage() {
 
       <Footer />
     </div>
+  );
+}
+
+export default function ProductsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" />}>
+      <ProductsPageContent />
+    </Suspense>
   );
 }

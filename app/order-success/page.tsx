@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { CheckCircle, Package, ArrowRight, Home, Clock } from 'lucide-react';
@@ -11,7 +12,7 @@ import { Footer } from '@/components/store/footer';
 import { useStore } from '@/lib/store-context';
 import { formatPrice } from '@/lib/data';
 
-export default function OrderSuccessPage() {
+function OrderSuccessPageContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get('orderId');
   const { state } = useStore();
@@ -221,5 +222,13 @@ export default function OrderSuccessPage() {
 
       <Footer />
     </div>
+  );
+}
+
+export default function OrderSuccessPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" />}>
+      <OrderSuccessPageContent />
+    </Suspense>
   );
 }
