@@ -120,8 +120,8 @@ export default function AdminContentPage() {
         }),
       });
 
-      const data = (await response.json()) as { error?: string };
-      if (!response.ok) {
+      const data = (await response.json()) as { item?: { url: string }; error?: string };
+      if (!response.ok || !data.item) {
         alert(data.error || 'Failed to add media URL');
         return;
       }
