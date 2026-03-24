@@ -27,6 +27,7 @@ export default function AdminContentPage() {
   const [sortOrder, setSortOrder] = useState(0);
   const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
   const [file, setFile] = useState<File | null>(null);
+  const [mediaUrl, setMediaUrl] = useState('');
 
   const fetchGallery = async () => {
     setLoading(true);
@@ -48,6 +49,7 @@ export default function AdminContentPage() {
     setSortOrder(0);
     setMediaType('image');
     setFile(null);
+    setMediaUrl('');
   };
 
   const handleUpload = async () => {
@@ -80,6 +82,47 @@ export default function AdminContentPage() {
       const data = (await response.json()) as { error?: string };
       if (!response.ok) {
         alert(data.error || 'Upload failed');
+        return;
+      }
+
+      resetForm();
+      await fetchGallery();
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleAddFromUrl = async () => {
+    const token = localStorage.getItem('kr_token');
+    if (!token) {
+      alert('Admin auth token missing. Please login again.');
+      return;
+    }
+
+    if (!mediaUrl.trim()) {
+      alert('Please enter image/video URL first.');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const response = await fetch('/api/gallery', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          url: mediaUrl.trim(),
+          mediaType,
+          title,
+          sortOrder,
+        }),
+      });
+
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        alert(data.error || 'Failed to add media URL');
         return;
       }
 
@@ -161,7 +204,7 @@ export default function AdminContentPage() {
             <Upload className="h-5 w-5" />
             Upload Media
           </CardTitle>
-          <CardDescription>Add gallery media from your local system or use default image</CardDescription>
+          <CardDescription>Add gallery media from your local system, URL, or use default image</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-3">
@@ -201,10 +244,23 @@ export default function AdminContentPage() {
             />
           </div>
 
+          <div className="space-y-2">
+            <Label>Or Add from URL</Label>
+            <Input
+              value={mediaUrl}
+              onChange={(e) => setMediaUrl(e.target.value)}
+              placeholder={mediaType === 'image' ? 'https://example.com/image.jpg' : 'https://example.com/video.mp4'}
+            />
+          </div>
+
           <div className="flex flex-wrap gap-2">
             <Button onClick={handleUpload} disabled={uploading} className="gap-2">
               <Upload className="h-4 w-4" />
               {uploading ? 'Uploading...' : 'Upload to Gallery'}
+            </Button>
+            <Button variant="outline" onClick={handleAddFromUrl} disabled={uploading} className="gap-2">
+              <ImagePlus className="h-4 w-4" />
+              Add URL
             </Button>
             <Button variant="outline" onClick={addDefaultImage} disabled={uploading} className="gap-2">
               <ImagePlus className="h-4 w-4" />

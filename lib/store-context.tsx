@@ -301,7 +301,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       const productResponse = await apiRequest<{ products: Product[] }>('/api/products');
       if (productResponse?.products?.length) {
-        dispatch({ type: 'SET_PRODUCTS', payload: productResponse.products });
+        const mergedProducts = [...initialProducts, ...productResponse.products].reduce<Product[]>((acc, product) => {
+          if (!acc.some((item) => item.id === product.id)) {
+            acc.push(product);
+          }
+          return acc;
+        }, []);
+        dispatch({ type: 'SET_PRODUCTS', payload: mergedProducts });
       }
 
       const token = getAuthToken();
