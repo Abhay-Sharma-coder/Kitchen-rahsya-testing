@@ -58,30 +58,49 @@ export default function AdminContentPage() {
       alert('Admin auth token missing. Please login again.');
       return;
     }
-    if (!file) {
-      alert('Please select a file first.');
+    if (!file && !mediaUrl.trim()) {
+      alert('Please select a file or enter a media URL.');
       return;
     }
 
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('mediaType', mediaType);
-      formData.append('title', title);
-      formData.append('sortOrder', String(sortOrder));
+      let response: Response;
 
-      const response = await fetch('/api/gallery', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
+      if (file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('mediaType', mediaType);
+        formData.append('title', title);
+        formData.append('sortOrder', String(sortOrder));
 
-      const data = (await response.json()) as { error?: string };
+        response = await fetch('/api/gallery', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        });
+      } else {
+        response = await fetch('/api/gallery', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            url: mediaUrl.trim(),
+            mediaType,
+            title,
+            sortOrder,
+          }),
+        });
+      }
+
+      const data = (await response.json()) as { item?: { url: string }; error?: string; details?: string };
       if (!response.ok) {
-        alert(data.error || 'Upload failed');
+        const message = data.details ? `${data.error || 'Upload failed'}: ${data.details}` : data.error || 'Upload failed';
+        alert(message);
         return;
       }
 
@@ -120,9 +139,10 @@ export default function AdminContentPage() {
         }),
       });
 
-      const data = (await response.json()) as { item?: { url: string }; error?: string };
+      const data = (await response.json()) as { item?: { url: string }; error?: string; details?: string };
       if (!response.ok || !data.item) {
-        alert(data.error || 'Failed to add media URL');
+        const message = data.details ? `${data.error || 'Failed to add media URL'}: ${data.details}` : data.error || 'Failed to add media URL';
+        alert(message);
         return;
       }
 
