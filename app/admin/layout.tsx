@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Menu,
   X,
+  CreditCard,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -30,6 +31,7 @@ const sidebarNav = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/products', label: 'Products', icon: Package },
   { href: '/admin/orders', label: 'Orders', icon: ShoppingCart },
+  { href: '/admin/payments', label: 'Payments', icon: CreditCard },
   { href: '/admin/customers', label: 'Customers', icon: Users },
   { href: '/admin/reviews', label: 'Reviews', icon: Star },
   { href: '/admin/leads', label: 'Leads', icon: MessageSquare },

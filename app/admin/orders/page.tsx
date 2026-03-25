@@ -414,6 +414,48 @@ export default function AdminOrdersPage() {
 
               <Separator />
 
+              {/* Payment Details (for online payments) */}
+              {selectedOrder.paymentGateway && (
+                <div className="space-y-3 rounded-lg border bg-blue-50 p-4">
+                  <h4 className="font-semibold flex items-center gap-2">
+                    <CreditCard className="h-4 w-4" />
+                    Payment Gateway Details
+                  </h4>
+                  <div className="grid gap-3 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Gateway:</span>
+                      <Badge className="bg-blue-100 text-blue-800">{selectedOrder.paymentGateway}</Badge>
+                    </div>
+                    {selectedOrder.paymentOrderId && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Order ID:</span>
+                        <span className="font-mono text-xs break-all">{selectedOrder.paymentOrderId}</span>
+                      </div>
+                    )}
+                    {selectedOrder.paymentId && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Transaction ID:</span>
+                        <span className="font-mono text-xs break-all">{selectedOrder.paymentId}</span>
+                      </div>
+                    )}
+                    {selectedOrder.paymentCapturedAt && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Captured At:</span>
+                        <span>{new Date(selectedOrder.paymentCapturedAt).toLocaleString('en-IN')}</span>
+                      </div>
+                    )}
+                    {selectedOrder.paymentSignature && (
+                      <div className="mt-2 pt-2 border-t">
+                        <p className="text-xs text-muted-foreground mb-1">Signature (HMAC):</p>
+                        <p className="font-mono text-xs break-all bg-white p-2 rounded border">{selectedOrder.paymentSignature}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <Separator />
+
               {/* Customer & Shipping */}
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
