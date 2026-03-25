@@ -106,7 +106,7 @@ export default function ProductDetailPage({ params }: PageProps) {
     toast.success(isInWishlist ? 'Removed from wishlist' : 'Added to wishlist');
   };
 
-  const handleSubmitReview = (e: React.FormEvent) => {
+  const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!state.user) {
       toast.error('Please login to submit a review');
@@ -117,24 +117,39 @@ export default function ProductDetailPage({ params }: PageProps) {
       return;
     }
 
-    const review: Review = {
-      id: `review_${Date.now()}`,
-      productId: product.id,
-      userId: state.user.id,
-      userName: state.user.name,
-      rating: newReview.rating,
-      title: newReview.title,
-      content: newReview.content,
-      isVerified: false,
-      isHighlighted: false,
-      sentiment: newReview.rating >= 4 ? 'positive' : newReview.rating >= 3 ? 'neutral' : 'negative',
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-    };
+    const token = localStorage.getItem('kr_token');
+    if (!token) {
+      toast.error('Auth token not found. Please login again.');
+      return;
+    }
 
-    dispatch({ type: 'ADD_REVIEW', payload: review });
-    setNewReview({ rating: 5, title: '', content: '' });
-    toast.success('Review submitted! It will appear after moderation.');
+    try {
+      const response = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          productId: product.id,
+          rating: newReview.rating,
+          title: newReview.title,
+          content: newReview.content,
+        }),
+      });
+
+      const data = (await response.json()) as { review?: Review; error?: string };
+      if (!response.ok || !data.review) {
+        toast.error(data.error || 'Failed to submit review');
+        return;
+      }
+
+      dispatch({ type: 'ADD_REVIEW', payload: data.review });
+      setNewReview({ rating: 5, title: '', content: '' });
+      toast.success('Review submitted! It will appear after moderation.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to submit review');
+    }
   };
 
   return (

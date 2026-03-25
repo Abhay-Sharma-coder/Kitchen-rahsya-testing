@@ -310,6 +310,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'SET_PRODUCTS', payload: mergedProducts });
       }
 
+      const reviewsResponse = await apiRequest<{ reviews: Review[] }>('/api/reviews');
+      if (reviewsResponse?.reviews) {
+        dispatch({ type: 'SET_REVIEWS', payload: reviewsResponse.reviews });
+      }
+
       const token = getAuthToken();
       if (token && savedUser) {
         const ordersResponse = await apiRequest<{ orders: Order[] }>('/api/orders');
