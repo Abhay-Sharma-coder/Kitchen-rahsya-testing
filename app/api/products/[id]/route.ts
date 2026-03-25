@@ -70,11 +70,14 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     const { id } = await context.params;
     const body = (await req.json()) as Record<string, unknown>;
     const payload = normalizeProductPayload(body);
+    const incomingId = String(body.id ?? "").trim();
+    const productId = incomingId || id;
 
-    const doc = await Product.findOneAndUpdate({ id }, payload, { new: true });
-    if (!doc) {
-      return NextResponse.json({ error: "Product not found" }, { status: 404 });
-    }
+    const doc = await Product.findOneAndUpdate(
+      { id: productId },
+      { ...payload, id: productId },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
 
     return NextResponse.json({ product: serializeProduct(doc.toObject()) }, { status: 200 });
   } catch (error) {
