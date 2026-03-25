@@ -30,15 +30,63 @@ import { Textarea } from '@/components/ui/textarea';
 import { Header } from '@/components/store/header';
 import { Footer } from '@/components/store/footer';
 import { useStore } from '@/lib/store-context';
-import { formatPrice, formatWeight, type Address } from '@/lib/data';
+import { formatPrice, formatWeight, type Address, type Order } from '@/lib/data';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 type CheckoutStep = 'cart' | 'address' | 'payment' | 'confirm';
 
+type RazorpaySuccessResponse = {
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
+};
+
+type RazorpayOptions = {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  handler: (response: RazorpaySuccessResponse) => void;
+  prefill?: {
+    name?: string;
+    email?: string;
+    contact?: string;
+  };
+  theme?: {
+    color?: string;
+  };
+  modal?: {
+    ondismiss?: () => void;
+  };
+};
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: RazorpayOptions) => { open: () => void };
+  }
+}
+
+async function loadRazorpayScript() {
+  if (window.Razorpay) {
+    return true;
+  }
+
+  return new Promise<boolean>((resolve) => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
+
 export default function CheckoutPage() {
   const router = useRouter();
-  const { state, getProduct, removeFromCart, updateCartQuantity, getCartTotal, placeOrder } = useStore();
+  const { state, dispatch, getProduct, removeFromCart, updateCartQuantity, getCartTotal, placeOrder } = useStore();
 
   const [step, setStep] = useState<CheckoutStep>('cart');
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'online'>('online');
@@ -112,17 +160,107 @@ export default function CheckoutPage() {
 
     setIsProcessing(true);
 
-    // Simulate payment processing
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    try {
+      if (paymentMethod === 'cod') {
+        const order = await placeOrder(paymentMethod, address);
+        if (!order) {
+          toast.error('Failed to place order. Please try again.');
+          return;
+        }
 
-    const order = await placeOrder(paymentMethod, address);
+        router.push(`/order-success?orderId=${order.orderId}`);
+        return;
+      }
 
-    if (order) {
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded || !window.Razorpay) {
+        toast.error('Payment SDK failed to load. Please try again.');
+        return;
+      }
+
+      const createResponse = await fetch('/api/payments/create-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('kr_token') || ''}`,
+        },
+        body: JSON.stringify({
+          items: state.cart,
+          address,
+        }),
+      });
+
+      const createData = (await createResponse.json()) as {
+        error?: string;
+        order?: { id: string; orderId: string };
+        razorpay?: {
+          keyId: string;
+          orderId: string;
+          amount: number;
+          currency: string;
+          customerEmail?: string;
+        };
+      };
+
+      if (!createResponse.ok || !createData.order || !createData.razorpay) {
+        toast.error(createData.error || 'Unable to initialize online payment');
+        return;
+      }
+
+      const options: RazorpayOptions = {
+        key: createData.razorpay.keyId,
+        amount: createData.razorpay.amount,
+        currency: createData.razorpay.currency,
+        name: 'Kitchen Rahasya',
+        description: `Order ${createData.order.orderId}`,
+        order_id: createData.razorpay.orderId,
+        prefill: {
+          name: state.user?.name,
+          email: createData.razorpay.customerEmail || state.user?.email,
+          contact: state.user?.phone,
+        },
+        modal: {
+          ondismiss: () => {
+            toast.info('Payment cancelled. You can retry from checkout.');
+          },
+        },
+        handler: async (paymentResponse) => {
+          const verifyResponse = await fetch('/api/payments/verify', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${localStorage.getItem('kr_token') || ''}`,
+            },
+            body: JSON.stringify({
+              internalOrderId: createData.order?.id,
+              razorpay_order_id: paymentResponse.razorpay_order_id,
+              razorpay_payment_id: paymentResponse.razorpay_payment_id,
+              razorpay_signature: paymentResponse.razorpay_signature,
+            }),
+          });
+
+          const verifyData = (await verifyResponse.json()) as {
+            error?: string;
+            order?: Order;
+          };
+
+          if (!verifyResponse.ok || !verifyData.order) {
+            toast.error(verifyData.error || 'Payment verification failed');
+            return;
+          }
+
+          dispatch({ type: 'ADD_ORDER', payload: verifyData.order });
+          dispatch({ type: 'CLEAR_CART' });
+          router.push(`/order-success?orderId=${verifyData.order.orderId}`);
+        },
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.open();
+    } catch {
+      toast.error('Payment failed. Please try again.');
+    } finally {
       setIsProcessing(false);
-      router.push(`/order-success?orderId=${order.orderId}`);
-    } else {
-      setIsProcessing(false);
-      toast.error('Failed to place order. Please try again.');
     }
   };
 

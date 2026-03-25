@@ -61,6 +61,12 @@ export function serializeOrder(order: Record<string, unknown>) {
     total: Number(order.total ?? 0),
     paymentMethod: (order.paymentMethod as "cod" | "online") ?? "online",
     paymentStatus: (order.paymentStatus as "pending" | "paid" | "failed") ?? "pending",
+    paymentGateway: order.paymentGateway ? String(order.paymentGateway) : undefined,
+    paymentOrderId: order.paymentOrderId ? String(order.paymentOrderId) : undefined,
+    paymentId: order.paymentId ? String(order.paymentId) : undefined,
+    paymentCapturedAt: order.paymentCapturedAt
+      ? new Date(order.paymentCapturedAt as string | number | Date).toISOString()
+      : undefined,
     orderStatus:
       (order.orderStatus as
         | "pending"

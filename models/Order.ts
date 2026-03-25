@@ -13,6 +13,7 @@ export type ShippingStatus =
 export type PaymentMethod = "cod" | "online";
 
 export type PaymentStatus = "pending" | "paid" | "failed";
+export type PaymentGateway = "razorpay";
 
 export interface IOrderItem {
   productId: string;
@@ -32,6 +33,11 @@ export interface IOrder extends Document {
   total: number;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
+  paymentGateway?: PaymentGateway;
+  paymentOrderId?: string;
+  paymentId?: string;
+  paymentSignature?: string;
+  paymentCapturedAt?: Date;
   orderStatus: ShippingStatus;
   shippingAddress: {
     id: string;
@@ -167,6 +173,29 @@ const orderSchema = new Schema<IOrder>(
       enum: ["pending", "paid", "failed"],
       default: "pending",
       index: true,
+    },
+    paymentGateway: {
+      type: String,
+      enum: ["razorpay"],
+      required: false,
+    },
+    paymentOrderId: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+    paymentId: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+    paymentSignature: {
+      type: String,
+      trim: true,
+    },
+    paymentCapturedAt: {
+      type: Date,
+      required: false,
     },
     orderStatus: {
       type: String,

@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
     const totalWeight = calculateTotalWeight(items);
     const deliveryCharge = calculateDeliveryCharge(totalWeight, body.paymentMethod);
     const total = subtotal + deliveryCharge;
+    const isOnlinePaid = body.paymentMethod === "online" && Boolean(body.transactionId);
 
     const order = await Order.create({
       id: `order_${Date.now()}`,
@@ -62,8 +63,8 @@ export async function POST(req: NextRequest) {
       deliveryCharge,
       total,
       paymentMethod: body.paymentMethod,
-      paymentStatus: body.paymentMethod === "cod" ? "pending" : "paid",
-      orderStatus: "pending",
+      paymentStatus: isOnlinePaid ? "paid" : "pending",
+      orderStatus: isOnlinePaid ? "confirmed" : "pending",
       shippingAddress: body.address,
       transactionId: body.transactionId,
     });

@@ -86,6 +86,10 @@ export interface Order {
   total: number;
   paymentMethod: 'cod' | 'online';
   paymentStatus: 'pending' | 'paid' | 'failed';
+  paymentGateway?: 'razorpay';
+  paymentOrderId?: string;
+  paymentId?: string;
+  paymentCapturedAt?: string;
   orderStatus: 'pending' | 'confirmed' | 'packed' | 'shipped' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'rto';
   shippingAddress: Address;
   shipment?: {
