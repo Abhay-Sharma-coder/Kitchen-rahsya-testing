@@ -3,6 +3,23 @@ import Review from "@/models/Review";
 import { connectToDatabase } from "@/lib/mongodb";
 import { requireAuth, requireAdmin } from "@/lib/auth";
 
+function serializeReview(input: Record<string, unknown>) {
+  return {
+    id: String(input.id ?? input._id ?? ""),
+    productId: String(input.productId ?? ""),
+    userId: String(input.userId ?? ""),
+    userName: String(input.userName ?? "Anonymous"),
+    rating: Number(input.rating ?? 5),
+    title: String(input.title ?? ""),
+    content: String(input.content ?? ""),
+    isVerified: Boolean(input.isVerified),
+    isHighlighted: Boolean(input.isHighlighted),
+    sentiment: String(input.sentiment ?? "neutral"),
+    status: String(input.status ?? "pending"),
+    createdAt: String(input.createdAt ?? new Date().toISOString()),
+  };
+}
+
 export async function GET(req: NextRequest) {
   try {
     await connectToDatabase();
@@ -10,15 +27,27 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const productId = searchParams.get("productId");
     const status = searchParams.get("status");
+    const adminMode = searchParams.get("admin") === "1";
 
-    if (!productId) {
+    if (!productId && adminMode) {
+      const admin = requireAdmin(req);
+      if (admin.error || !admin.payload) {
+        return NextResponse.json({ error: admin.error }, { status: admin.error === "Forbidden" ? 403 : 401 });
+      }
+    }
+
+    if (!productId && !adminMode) {
       return NextResponse.json({ reviews: [] }, { status: 200 });
     }
 
-    const query: Record<string, unknown> = { productId };
+    const query: Record<string, unknown> = {};
+    if (productId) {
+      query.productId = productId;
+    }
+
     if (status && ["approved", "pending", "hidden"].includes(status)) {
       query.status = status;
-    } else {
+    } else if (!adminMode || Boolean(productId)) {
       query.status = "approved";
     }
 
@@ -26,7 +55,7 @@ export async function GET(req: NextRequest) {
       .sort({ isHighlighted: -1, createdAt: -1 })
       .lean();
 
-    return NextResponse.json({ reviews }, { status: 200 });
+    return NextResponse.json({ reviews: reviews.map((review) => serializeReview(review as unknown as Record<string, unknown>)) }, { status: 200 });
   } catch {
     return NextResponse.json(
       { reviews: [], error: "Failed to fetch reviews" },
@@ -49,6 +78,7 @@ export async function POST(req: NextRequest) {
     const rating = Number(body.rating ?? 5);
     const title = String(body.title ?? "").trim();
     const content = String(body.content ?? "").trim();
+    const incomingUserName = String(body.userName ?? "").trim();
 
     if (!productId || !title || !content || rating < 1 || rating > 5) {
       return NextResponse.json(
@@ -65,11 +95,13 @@ export async function POST(req: NextRequest) {
     }
 
     const sentiment = rating >= 4 ? "positive" : rating >= 3 ? "neutral" : "negative";
+    const fallbackUserName = auth.payload.email.split("@")[0] || auth.payload.userId;
+    const userName = incomingUserName || fallbackUserName;
 
     const doc = await Review.create({
       productId,
       userId: auth.payload.userId,
-      userName: auth.payload.userId === "admin_local" ? "Demo User" : auth.payload.userId,
+      userName,
       rating,
       title,
       content,
@@ -79,7 +111,7 @@ export async function POST(req: NextRequest) {
       isHighlighted: false,
     });
 
-    return NextResponse.json({ review: doc.toObject() }, { status: 201 });
+    return NextResponse.json({ review: serializeReview(doc.toObject() as Record<string, unknown>) }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
       {
@@ -126,7 +158,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Review not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ review: doc.toObject() }, { status: 200 });
+    return NextResponse.json({ review: serializeReview(doc.toObject() as Record<string, unknown>) }, { status: 200 });
   } catch (error) {
     return NextResponse.json(
       {

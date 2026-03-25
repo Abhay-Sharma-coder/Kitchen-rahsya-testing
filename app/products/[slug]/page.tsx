@@ -132,6 +132,7 @@ export default function ProductDetailPage({ params }: PageProps) {
         },
         body: JSON.stringify({
           productId: product.id,
+          userName: state.user.name,
           rating: newReview.rating,
           title: newReview.title,
           content: newReview.content,
